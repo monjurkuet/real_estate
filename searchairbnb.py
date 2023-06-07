@@ -13,7 +13,7 @@ def jsclick(xpth):
 def newBrowser():
     SYSTEM_OS=platform.system()
     if SYSTEM_OS=='Windows':
-        user_data_dir="G:\\copytraderscrapingprofile2"
+        user_data_dir="G:\\airbnbscrapingprofile"
         browser_executable_path='C:\\Program Files\\BraveSoftware\\Brave-Browser\\Application\\brave.exe'
     if SYSTEM_OS=='Linux':
         CURRENTUSER=getpass.getuser()
@@ -50,8 +50,6 @@ DETAILS_API='https://www.airbnb.com/api/v3/StaysPdpSections'
 null=None
 true=True
 false=False
-SYSTEM_OS=platform.system()
-CURRENTUSER=getpass.getuser()
 
 
 url='https://www.airbnb.com/wishlists/v/1311753801?s=67&unique_share_id=4d3f13a2-43e0-4e3a-8d0d-8a180f0b491b'
@@ -61,9 +59,11 @@ time.sleep(10)
 ITEMS_LIST=[i.get_attribute('href') for i in driver.find_elements('xpath','//div[@id="FMP-target"]//div[@data-testid="card-container"]/a')]
 for each_listing in ITEMS_LIST:
     print(each_listing)
-    driver.get(url)
-extractReadltimeData(driver,portfolioId)
+    driver.get(each_listing)
+availability_content,details_content=extractReadltimeData(driver)
 del driver.requests
+
+metadata=details_content['presentation']['stayProductDetailPage']['sections']['metadata']['loggingContext']['eventDataLogging']
 
 driver.close()
 driver.quit()
