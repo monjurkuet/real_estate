@@ -2,6 +2,40 @@ import seleniumwire.undetected_chromedriver as uc
 from seleniumwire.utils import decode
 import time,getpass,platform
 from datetime import datetime
+import sshtunnel
+from sshtunnel import SSHTunnelForwarder
+import pymysql
+import logging
+# myql ssh tunnel
+ssh_host = '161.97.97.183'
+ssh_username = 'root'
+ssh_password = '$C0NTaB0vps8765%%$#'
+database_username = 'root'
+database_password = '$C0NTaB0vps8765%%$#'
+database_name = 'airbnb'
+localhost = '127.0.0.1'
+
+def open_ssh_tunnel(verbose=False):
+    if verbose:
+        sshtunnel.DEFAULT_LOGLEVEL = logging.DEBUG
+    global tunnel
+    tunnel = SSHTunnelForwarder(
+        (ssh_host, 22),
+        ssh_username = ssh_username,
+        ssh_password = ssh_password,
+        remote_bind_address = ('127.0.0.1', 3306)
+    )
+    tunnel.start()
+
+def mysql_connect():
+    global connection
+    connection = pymysql.connect(
+        host='127.0.0.1',
+        user=database_username,
+        passwd=database_password,
+        db=database_name,
+        port=tunnel.local_bind_port
+    )
 
 def jsclick(xpth):
     try: 
@@ -43,6 +77,32 @@ def extractReadltimeData(driver):
     details_content=details_content['data']
     return availability_content,details_content
 
+def insert_details(listingId,listingLat,listingLng,bedType,roomType,personCapacity,descriptionLanguage,
+ isSuperhost,accuracyRating,checkinRating,cleanlinessRating,communicationRating,locationRating,
+ valueRating,guestSatisfactionOverall,visibleReviewCount,price,location,title):
+    cursor = connection.cursor()  
+    sql_insert_with_param = """REPLACE INTO listings
+                            (listingId,listingLat,listingLng,bedType,roomType,personCapacity,descriptionLanguage,
+                            isSuperhost,accuracyRating,checkinRating,cleanlinessRating,communicationRating,locationRating,
+                            valueRating,guestSatisfactionOverall,visibleReviewCount,price,location,title) 
+                            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s);"""
+    val = (listingId,listingLat,listingLng,bedType,roomType,personCapacity,descriptionLanguage,
+ isSuperhost,accuracyRating,checkinRating,cleanlinessRating,communicationRating,locationRating,
+ valueRating,guestSatisfactionOverall,visibleReviewCount,price,location,title)
+    cursor.execute(sql_insert_with_param , val)
+    connection.commit() 
+    print(val)
+
+def insert_availability(listingId,available,calendarDate,maxNights,minNights,availableForCheckin,bookable):
+    cursor = connection.cursor()  
+    sql_insert_with_param = """REPLACE INTO availability
+                            (listingId,available,calendarDate,maxNights,minNights,availableForCheckin,bookable) 
+                            VALUES (%s,%s,%s,%s,%s,%s,%s);"""
+    val = (listingId,available,calendarDate,maxNights,minNights,availableForCheckin,bookable)
+    cursor.execute(sql_insert_with_param , val)
+    connection.commit() 
+    print(val)
+
 # URLS
 AVAILABILITY_API='https://www.airbnb.com/api/v3/PdpAvailabilityCalendar'
 DETAILS_API='https://www.airbnb.com/api/v3/StaysPdpSections'
@@ -60,10 +120,49 @@ ITEMS_LIST=[i.get_attribute('href') for i in driver.find_elements('xpath','//div
 for each_listing in ITEMS_LIST:
     print(each_listing)
     driver.get(each_listing)
-availability_content,details_content=extractReadltimeData(driver)
-del driver.requests
-
-metadata=details_content['presentation']['stayProductDetailPage']['sections']['metadata']['loggingContext']['eventDataLogging']
+    time.sleep(20)
+    availability_content,details_content=extractReadltimeData(driver)
+    # property data
+    title=driver.find_element('xpath','//h1').text.strip()
+    metadata=details_content['presentation']['stayProductDetailPage']['sections']['metadata']['loggingContext']['eventDataLogging']
+    listingId=metadata['listingId']
+    listingLat=metadata['listingLat']
+    listingLng=metadata['listingLng']
+    bedType=metadata['bedType']
+    roomType=metadata['roomType']
+    personCapacity=metadata['personCapacity']
+    descriptionLanguage=metadata['descriptionLanguage']
+    isSuperhost=metadata['isSuperhost']
+    accuracyRating=metadata['accuracyRating']
+    checkinRating=metadata['checkinRating']
+    cleanlinessRating=metadata['cleanlinessRating']
+    communicationRating=metadata['communicationRating']
+    locationRating=metadata['locationRating']
+    valueRating=metadata['valueRating']
+    guestSatisfactionOverall=metadata['guestSatisfactionOverall']
+    visibleReviewCount=metadata['visibleReviewCount']
+    price=driver.find_element('xpath','//div[@data-section-id="BOOK_IT_SIDEBAR"]//span[@class="_tyxjp1"]').text.strip().split('$')[1]
+    location=driver.find_element('xpath','//span[@class="_9xiloll"]').text.strip()
+    insert_details(listingId,listingLat,listingLng,bedType,roomType,personCapacity,descriptionLanguage,
+    isSuperhost,accuracyRating,checkinRating,cleanlinessRating,communicationRating,locationRating,
+    valueRating,guestSatisfactionOverall,visibleReviewCount,price,location,title)
+    # availability data
+    calendarMonths=availability_content['merlin']['pdpAvailabilityCalendar']['calendarMonths']
+    for eachmonth in calendarMonths:
+        for day in eachmonth['days']:
+            calendarDate=day['calendarDate']
+            available=day['available']
+            maxNights=day['maxNights']
+            minNights=day['minNights']
+            availableForCheckin=day['availableForCheckin']
+            bookable=day['bookable']
+            insert_availability(listingId,available,calendarDate,maxNights,minNights,availableForCheckin,bookable)
+    del driver.requests
 
 driver.close()
 driver.quit()
+
+open_ssh_tunnel()
+mysql_connect()
+connection.close()
+tunnel.close
