@@ -69,6 +69,14 @@ def get_listings():
     print('Total rows : ',len(rows))
     return initial_data
 
+def update_listing_price(listingId,checkindate,price,pricewithfees):
+  cursor = connection.cursor()    
+  sql_select_query = """Update availability set price= %s,pricewithfees= %s where listingId = %s and checkindate = %s """
+  val=(price,pricewithfees,listingId,checkindate)
+  cursor.execute(sql_select_query,val)
+  connection.commit()
+  print(val)
+
 if __name__ == "__main__":
     listings=get_listings()
     driver=newBrowser()

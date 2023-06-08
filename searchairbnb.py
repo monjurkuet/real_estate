@@ -79,16 +79,16 @@ def extractReadltimeData(driver):
 
 def insert_details(listingId,listingLat,listingLng,bedType,roomType,personCapacity,descriptionLanguage,
  isSuperhost,accuracyRating,checkinRating,cleanlinessRating,communicationRating,locationRating,
- valueRating,guestSatisfactionOverall,visibleReviewCount,price,location,title):
+ valueRating,guestSatisfactionOverall,visibleReviewCount,location,title):
     cursor = connection.cursor()  
     sql_insert_with_param = """REPLACE INTO listings
                             (listingId,listingLat,listingLng,bedType,roomType,personCapacity,descriptionLanguage,
                             isSuperhost,accuracyRating,checkinRating,cleanlinessRating,communicationRating,locationRating,
-                            valueRating,guestSatisfactionOverall,visibleReviewCount,price,location,title) 
-                            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s);"""
+                            valueRating,guestSatisfactionOverall,visibleReviewCount,location,title) 
+                            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s);"""
     val = (listingId,listingLat,listingLng,bedType,roomType,personCapacity,descriptionLanguage,
  isSuperhost,accuracyRating,checkinRating,cleanlinessRating,communicationRating,locationRating,
- valueRating,guestSatisfactionOverall,visibleReviewCount,price,location,title)
+ valueRating,guestSatisfactionOverall,visibleReviewCount,location,title)
     cursor.execute(sql_insert_with_param , val)
     connection.commit() 
     print(val)
@@ -141,11 +141,10 @@ for each_listing in ITEMS_LIST:
     valueRating=metadata['valueRating']
     guestSatisfactionOverall=metadata['guestSatisfactionOverall']
     visibleReviewCount=metadata['visibleReviewCount']
-    price=driver.find_element('xpath','//div[@data-section-id="BOOK_IT_SIDEBAR"]//span[@class="_tyxjp1"]').text.strip().split('$')[1]
     location=driver.find_element('xpath','//span[@class="_9xiloll"]').text.strip()
     insert_details(listingId,listingLat,listingLng,bedType,roomType,personCapacity,descriptionLanguage,
     isSuperhost,accuracyRating,checkinRating,cleanlinessRating,communicationRating,locationRating,
-    valueRating,guestSatisfactionOverall,visibleReviewCount,price,location,title)
+    valueRating,guestSatisfactionOverall,visibleReviewCount,location,title)
     # availability data
     calendarMonths=availability_content['merlin']['pdpAvailabilityCalendar']['calendarMonths']
     for eachmonth in calendarMonths:
