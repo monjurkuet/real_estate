@@ -82,6 +82,7 @@ if __name__ == "__main__":
         checkoutdate=checkindate+ timedelta(days=minNights)
         listingurl=f'https://www.airbnb.com/rooms/{listingId}?check_in={checkindate.strftime("%Y-%m-%d")}&check_out={checkoutdate.strftime("%Y-%m-%d")}'
         driver.get(listingurl)
-    
+        price=driver.find_element('xpath','//div[@data-section-id="BOOK_IT_SIDEBAR"]//span[@class="_tyxjp1"]').text.strip().split('$')[1]
+        pricewithfees=driver.find_element('xpath','//*[text()="Total before taxes"]//parent::*//following::*//span[@class="_j1kt73"]').text.strip().split('$')[1]
     connection.close()
     tunnel.close
