@@ -1,4 +1,7 @@
 import seleniumwire.undetected_chromedriver as uc
+from selenium.webdriver.support.wait import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.common.by import By
 from seleniumwire.utils import decode
 import time,getpass,platform
 from datetime import datetime
@@ -38,6 +41,12 @@ def mysql_connect():
         db=database_name,
         port=tunnel.local_bind_port
     )
+
+def waitfor(xpth):
+ try: 
+  WebDriverWait(driver, 15).until(EC.presence_of_element_located((By.XPATH, xpth)))
+ except:
+   pass 
 
 def newBrowser():
     SYSTEM_OS=platform.system()
@@ -91,7 +100,7 @@ if __name__ == "__main__":
             checkoutdate=checkindate+ timedelta(days=minNights)
             listingurl=f'https://www.airbnb.com/rooms/{listingId}?check_in={checkindate.strftime("%Y-%m-%d")}&check_out={checkoutdate.strftime("%Y-%m-%d")}'
             driver.get(listingurl)
-            time.sleep(5)
+            waitfor('//*[text()="Total before taxes"]//parent::*//following::*//span[@class="_j1kt73"]')
             price=driver.find_element('xpath','//div[@data-section-id="BOOK_IT_SIDEBAR"]//span[@class="_tyxjp1"]').text.strip().split('$')[1].replace(',','')
             pricewithfees=driver.find_element('xpath','//*[text()="Total before taxes"]//parent::*//following::*//span[@class="_j1kt73"]').text.strip().split('$')[1].replace(',','')
             update_listing_price(listingId,calendarDate,price,pricewithfees)
