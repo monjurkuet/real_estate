@@ -69,10 +69,10 @@ def get_listings():
     print('Total rows : ',len(rows))
     return initial_data
 
-def update_listing_price(listingId,checkindate,price,pricewithfees):
+def update_listing_price(listingId,calendarDate,price,pricewithfees):
   cursor = connection.cursor()    
-  sql_select_query = """Update availability set price= %s,pricewithfees= %s where listingId = %s and checkindate = %s """
-  val=(price,pricewithfees,listingId,checkindate)
+  sql_select_query = """Update availability set price= %s,pricewithfees= %s where listingId = %s and calendarDate = %s """
+  val=(price,pricewithfees,listingId,calendarDate)
   cursor.execute(sql_select_query,val)
   connection.commit()
   print(val)
@@ -82,15 +82,20 @@ if __name__ == "__main__":
     driver=newBrowser()
     open_ssh_tunnel()
     mysql_connect()
-    for listing in listings[:1]:
-        listingId=listing['listingId']
-        calendarDate=listing['calendarDate']
-        minNights=listing['minNights']
-        checkindate=parser.parse(calendarDate)
-        checkoutdate=checkindate+ timedelta(days=minNights)
-        listingurl=f'https://www.airbnb.com/rooms/{listingId}?check_in={checkindate.strftime("%Y-%m-%d")}&check_out={checkoutdate.strftime("%Y-%m-%d")}'
-        driver.get(listingurl)
-        price=driver.find_element('xpath','//div[@data-section-id="BOOK_IT_SIDEBAR"]//span[@class="_tyxjp1"]').text.strip().split('$')[1]
-        pricewithfees=driver.find_element('xpath','//*[text()="Total before taxes"]//parent::*//following::*//span[@class="_j1kt73"]').text.strip().split('$')[1]
+    for listing in listings:
+        try:
+            listingId=listing['listingId']
+            calendarDate=listing['calendarDate']
+            minNights=listing['minNights']
+            checkindate=parser.parse(calendarDate)
+            checkoutdate=checkindate+ timedelta(days=minNights)
+            listingurl=f'https://www.airbnb.com/rooms/{listingId}?check_in={checkindate.strftime("%Y-%m-%d")}&check_out={checkoutdate.strftime("%Y-%m-%d")}'
+            driver.get(listingurl)
+            time.sleep(5)
+            price=driver.find_element('xpath','//div[@data-section-id="BOOK_IT_SIDEBAR"]//span[@class="_tyxjp1"]').text.strip().split('$')[1].replace(',','')
+            pricewithfees=driver.find_element('xpath','//*[text()="Total before taxes"]//parent::*//following::*//span[@class="_j1kt73"]').text.strip().split('$')[1].replace(',','')
+            update_listing_price(listingId,calendarDate,price,pricewithfees)
+        except Exception as e:
+            print(e)
     connection.close()
     tunnel.close
