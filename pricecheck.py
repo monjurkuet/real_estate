@@ -78,10 +78,10 @@ def update_listing_price(listingId,calendarDate,price,pricewithfees):
   print(val)
 
 if __name__ == "__main__":
-    listings=get_listings()
-    driver=newBrowser()
     open_ssh_tunnel()
     mysql_connect()
+    listings=get_listings()
+    driver=newBrowser()
     for listing in listings:
         try:
             listingId=listing['listingId']
