@@ -117,6 +117,8 @@ driver=newBrowser()
 driver.get(url)
 time.sleep(10)
 ITEMS_LIST=[i.get_attribute('href') for i in driver.find_elements('xpath','//div[@id="FMP-target"]//div[@data-testid="card-container"]/a')]
+open_ssh_tunnel()
+mysql_connect()
 for each_listing in ITEMS_LIST:
     print(each_listing)
     driver.get(each_listing)
@@ -160,8 +162,5 @@ for each_listing in ITEMS_LIST:
 
 driver.close()
 driver.quit()
-
-open_ssh_tunnel()
-mysql_connect()
 connection.close()
 tunnel.close
