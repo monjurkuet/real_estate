@@ -97,7 +97,7 @@ if __name__ == "__main__":
             calendarDate=listing['calendarDate']
             minNights=listing['minNights']
             checkindate=parser.parse(calendarDate)
-            checkoutdate=checkindate+ timedelta(days=minNights)
+            checkoutdate=checkindate+ timedelta(days=5)
             listingurl=f'https://www.airbnb.com/rooms/{listingId}?check_in={checkindate.strftime("%Y-%m-%d")}&check_out={checkoutdate.strftime("%Y-%m-%d")}'
             driver.get(listingurl)
             waitfor('//*[text()="Total before taxes"]//parent::*//following::*//span[@class="_j1kt73"]')
