@@ -20,7 +20,7 @@ database_password = '$C0NTaB0vps8765%%$#'
 database_name = 'airbnb'
 localhost = '127.0.0.1'
 PROXY=0
-INCOGNITO=1
+INCOGNITO=0
 def open_ssh_tunnel(verbose=False):
     if verbose:
         sshtunnel.DEFAULT_LOGLEVEL = logging.DEBUG
