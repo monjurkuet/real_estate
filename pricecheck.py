@@ -19,7 +19,8 @@ database_username = 'root'
 database_password = '$C0NTaB0vps8765%%$#'
 database_name = 'airbnb'
 localhost = '127.0.0.1'
-
+PROXY=0
+INCOGNITO=1
 def open_ssh_tunnel(verbose=False):
     if verbose:
         sshtunnel.DEFAULT_LOGLEVEL = logging.DEBUG
@@ -58,14 +59,21 @@ def newBrowser():
         user_data_dir=f"/home/{CURRENTUSER}/airbnbscrapingprofile"
         browser_executable_path='/usr/bin/brave-browser'
     options = uc.ChromeOptions()
-    driver=uc.Chrome(user_data_dir=user_data_dir,
-                     browser_executable_path=browser_executable_path,version_main=113,options=options,
-                     headless=False,seleniumwire_options={
-        'proxy': {
-            'http': "http://45.85.147.136:24003",
-            'https': "http://45.85.147.136:24003"
-                }
-            })
+    if INCOGNITO==1:
+        options.add_argument("--incognito")
+    if PROXY==1:
+        driver=uc.Chrome(user_data_dir=user_data_dir,
+                        browser_executable_path=browser_executable_path,version_main=113,options=options,
+                        headless=False,seleniumwire_options={
+            'proxy': {
+                'http': "http://45.85.147.136:24003",
+                'https': "http://45.85.147.136:24003"
+                    }
+                })
+    else:
+        driver=uc.Chrome(user_data_dir=user_data_dir,
+                        browser_executable_path=browser_executable_path,version_main=113,options=options,
+                        headless=False)
     return driver
 
 def get_listings():
