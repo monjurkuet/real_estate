@@ -93,7 +93,16 @@ if __name__ == "__main__":
     mysql_connect()
     listings=get_listings()
     driver=newBrowser()
+    COUNTER=0
     for listing in listings:
+        COUNTER+=1
+        if COUNTER%250==0:
+            try:
+                driver.close()
+                driver.quit()
+                driver=newBrowser()
+            except Exception as e:
+                print(e) 
         try:
             listingId=listing['listingId']
             calendarDate=listing['calendarDate']
