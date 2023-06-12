@@ -3,7 +3,7 @@ from selenium.webdriver.support.wait import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
 from seleniumwire.utils import decode
-import time,getpass,platform
+import time,getpass,platform,random
 from datetime import datetime
 import sshtunnel
 from sshtunnel import SSHTunnelForwarder
@@ -119,6 +119,7 @@ if __name__ == "__main__":
             listingurl=f'https://www.airbnb.com/rooms/{listingId}?check_in={checkindate.strftime("%Y-%m-%d")}&check_out={checkoutdate.strftime("%Y-%m-%d")}'
             driver.get(listingurl)
             waitfor('//div[@data-section-id="BOOK_IT_SIDEBAR"]//span[@class="_tyxjp1"]')
+            time.sleep(random.uniform(1,10))
             price=driver.find_element('xpath','//div[@data-section-id="BOOK_IT_SIDEBAR"]//span[@class="_tyxjp1"]').text.strip().split('$')[1].replace(',','')
             pricewithfees=0
             update_listing_price(listingId,calendarDate,price,pricewithfees)
