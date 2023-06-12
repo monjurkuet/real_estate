@@ -58,7 +58,6 @@ def newBrowser():
         user_data_dir=f"/home/{CURRENTUSER}/airbnbscrapingprofile"
         browser_executable_path='/usr/bin/brave-browser'
     options = uc.ChromeOptions()
-    options.add_argument("--incognito")
     driver=uc.Chrome(user_data_dir=user_data_dir,
                      browser_executable_path=browser_executable_path,version_main=113,options=options,
                      headless=False,seleniumwire_options={
