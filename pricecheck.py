@@ -44,7 +44,7 @@ def mysql_connect():
 
 def waitfor(xpth):
  try: 
-  WebDriverWait(driver, 15).until(EC.presence_of_element_located((By.XPATH, xpth)))
+  WebDriverWait(driver, 30).until(EC.presence_of_element_located((By.XPATH, xpth)))
  except:
    pass 
 
