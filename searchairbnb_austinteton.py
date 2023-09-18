@@ -1,41 +1,8 @@
 import seleniumwire.undetected_chromedriver as uc
 from seleniumwire.utils import decode
-import time,getpass,platform
-from datetime import datetime
-import sshtunnel
-from sshtunnel import SSHTunnelForwarder
-import pymysql
-import logging
-# myql ssh tunnel
-ssh_host = '161.97.97.183'
-ssh_username = 'root'
-ssh_password = '$C0NTaB0vps8765%%$#'
-database_username = 'root'
-database_password = '$C0NTaB0vps8765%%$#'
-database_name = 'airbnb'
-localhost = '127.0.0.1'
-
-def open_ssh_tunnel(verbose=False):
-    if verbose:
-        sshtunnel.DEFAULT_LOGLEVEL = logging.DEBUG
-    global tunnel
-    tunnel = SSHTunnelForwarder(
-        (ssh_host, 22),
-        ssh_username = ssh_username,
-        ssh_password = ssh_password,
-        remote_bind_address = ('127.0.0.1', 3306)
-    )
-    tunnel.start()
-
-def mysql_connect():
-    global connection
-    connection = pymysql.connect(
-        host='127.0.0.1',
-        user=database_username,
-        passwd=database_password,
-        db=database_name,
-        port=tunnel.local_bind_port
-    )
+import time
+import getpass
+import platform
 
 def jsclick(xpth):
     try: 
@@ -47,7 +14,7 @@ def jsclick(xpth):
 def newBrowser():
     SYSTEM_OS=platform.system()
     if SYSTEM_OS=='Windows':
-        user_data_dir="G:\\airbnbscrapingprofile"
+        user_data_dir="D:\\airbnbscrapingprofile"
         browser_executable_path='C:\\Program Files\\BraveSoftware\\Brave-Browser\\Application\\brave.exe'
     if SYSTEM_OS=='Linux':
         CURRENTUSER=getpass.getuser()
@@ -73,8 +40,8 @@ def extractReadltimeData(driver):
     return availability_content,details_content
 
 def insert_details(listingId,listingLat,listingLng,bedType,roomType,personCapacity,descriptionLanguage,
- isSuperhost,accuracyRating,checkinRating,cleanlinessRating,communicationRating,locationRating,
- valueRating,guestSatisfactionOverall,visibleReviewCount,location,title):
+                    isSuperhost,accuracyRating,checkinRating,cleanlinessRating,communicationRating,locationRating,
+                    valueRating,guestSatisfactionOverall,visibleReviewCount,location,title):
     cursor = connection.cursor()  
     sql_insert_with_param = """REPLACE INTO listings
                             (listingId,listingLat,listingLng,bedType,roomType,personCapacity,descriptionLanguage,
@@ -82,8 +49,8 @@ def insert_details(listingId,listingLat,listingLng,bedType,roomType,personCapaci
                             valueRating,guestSatisfactionOverall,visibleReviewCount,location,title) 
                             VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s);"""
     val = (listingId,listingLat,listingLng,bedType,roomType,personCapacity,descriptionLanguage,
- isSuperhost,accuracyRating,checkinRating,cleanlinessRating,communicationRating,locationRating,
- valueRating,guestSatisfactionOverall,visibleReviewCount,location,title)
+            isSuperhost,accuracyRating,checkinRating,cleanlinessRating,communicationRating,locationRating,
+            valueRating,guestSatisfactionOverall,visibleReviewCount,location,title)
     cursor.execute(sql_insert_with_param , val)
     connection.commit() 
     print(val)
@@ -107,16 +74,17 @@ true=True
 false=False
 
 
-url='https://www.airbnb.com/wishlists/v/1311753801?s=67&unique_share_id=4d3f13a2-43e0-4e3a-8d0d-8a180f0b491b'
+#url='https://www.airbnb.com/wishlists/v/1311753801?s=67&unique_share_id=4d3f13a2-43e0-4e3a-8d0d-8a180f0b491b'
 driver=newBrowser()
-driver.get(url)
+#driver.get(url)
 time.sleep(10)
-ITEMS_LIST=[i.get_attribute('href') for i in driver.find_elements('xpath','//div[@id="FMP-target"]//div[@data-testid="card-container"]/a')]
-open_ssh_tunnel()
-mysql_connect()
-for each_listing in ITEMS_LIST[:1]:
+#ITEMS_LIST=[i.get_attribute('href') for i in driver.find_elements('xpath','//div[@id="FMP-target"]//div[@data-testid="card-container"]/a')]
+ITEMS_LIST=["https://www.airbnb.com/rooms/plus/19017960?display_currency=USD",
+            "https://www.airbnb.com/rooms/689828220112367064?display_currency=USD"]
+
+for each_listing in ITEMS_LIST:
     print(each_listing)
-    driver.get('https://www.airbnb.com/rooms/17388607?adults=2&checkin=&checkout=&children=0&infants=0&pets=0&wishlist_item_id=11002345979751&source_impression_id=p3_1688621235_yQQru8z0Dmy2tdZE&previous_page_section_name=1000')
+    driver.get(each_listing)
     time.sleep(20)
     availability_content,details_content=extractReadltimeData(driver)
     # property data
@@ -157,5 +125,3 @@ for each_listing in ITEMS_LIST[:1]:
 
 driver.close()
 driver.quit()
-connection.close()
-tunnel.close

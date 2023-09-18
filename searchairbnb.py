@@ -1,41 +1,7 @@
 import seleniumwire.undetected_chromedriver as uc
 from seleniumwire.utils import decode
 import time,getpass,platform
-from datetime import datetime
-import sshtunnel
-from sshtunnel import SSHTunnelForwarder
-import pymysql
 import logging
-# myql ssh tunnel
-ssh_host = '161.97.97.183'
-ssh_username = 'root'
-ssh_password = '$C0NTaB0vps8765%%$#'
-database_username = 'root'
-database_password = '$C0NTaB0vps8765%%$#'
-database_name = 'airbnb'
-localhost = '127.0.0.1'
-
-def open_ssh_tunnel(verbose=False):
-    if verbose:
-        sshtunnel.DEFAULT_LOGLEVEL = logging.DEBUG
-    global tunnel
-    tunnel = SSHTunnelForwarder(
-        (ssh_host, 22),
-        ssh_username = ssh_username,
-        ssh_password = ssh_password,
-        remote_bind_address = ('127.0.0.1', 3306)
-    )
-    tunnel.start()
-
-def mysql_connect():
-    global connection
-    connection = pymysql.connect(
-        host='127.0.0.1',
-        user=database_username,
-        passwd=database_password,
-        db=database_name,
-        port=tunnel.local_bind_port
-    )
 
 def jsclick(xpth):
     try: 

@@ -4,55 +4,22 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
 from seleniumwire.utils import decode
 import time,getpass,platform,random
-from datetime import datetime
-import sshtunnel
-from sshtunnel import SSHTunnelForwarder
-import pymysql
-import logging
 from dateutil import parser
 from datetime import timedelta
-# myql ssh tunnel
-ssh_host = '161.97.97.183'
-ssh_username = 'root'
-ssh_password = '$C0NTaB0vps8765%%$#'
-database_username = 'root'
-database_password = '$C0NTaB0vps8765%%$#'
-database_name = 'airbnb'
-localhost = '127.0.0.1'
-PROXY=0
+
 INCOGNITO=0
-def open_ssh_tunnel(verbose=False):
-    if verbose:
-        sshtunnel.DEFAULT_LOGLEVEL = logging.DEBUG
-    global tunnel
-    tunnel = SSHTunnelForwarder(
-        (ssh_host, 22),
-        ssh_username = ssh_username,
-        ssh_password = ssh_password,
-        remote_bind_address = ('127.0.0.1', 3306)
-    )
-    tunnel.start()
+PROXY=0
 
-def mysql_connect():
-    global connection
-    connection = pymysql.connect(
-        host='127.0.0.1',
-        user=database_username,
-        passwd=database_password,
-        db=database_name,
-        port=tunnel.local_bind_port
-    )
-
-def waitfor(xpth):
- try: 
-  WebDriverWait(driver, 30).until(EC.presence_of_element_located((By.XPATH, xpth)))
- except:
-   pass 
+def waitfor(driver,xpth):
+    try: 
+        WebDriverWait(driver, 30).until(EC.presence_of_element_located((By.XPATH, xpth)))
+    except:
+        pass 
 
 def newBrowser():
     SYSTEM_OS=platform.system()
     if SYSTEM_OS=='Windows':
-        user_data_dir="G:\\airbnbscrapingprofile"
+        user_data_dir="D:\\airbnbscrapingprofile"
         browser_executable_path='C:\\Program Files\\BraveSoftware\\Brave-Browser\\Application\\brave.exe'
     if SYSTEM_OS=='Linux':
         CURRENTUSER=getpass.getuser()
@@ -63,7 +30,7 @@ def newBrowser():
         options.add_argument("--incognito")
     if PROXY==1:
         driver=uc.Chrome(user_data_dir=user_data_dir,
-                        browser_executable_path=browser_executable_path,version_main=113,options=options,
+                        browser_executable_path=browser_executable_path,options=options,
                         headless=False,seleniumwire_options={
             'proxy': {
                 'http': "http://45.85.147.136:24003",
@@ -72,7 +39,7 @@ def newBrowser():
                 })
     else:
         driver=uc.Chrome(user_data_dir=user_data_dir,
-                        browser_executable_path=browser_executable_path,version_main=113,options=options,
+                        browser_executable_path=browser_executable_path,options=options,
                         headless=False)
     return driver
 
@@ -88,12 +55,12 @@ def get_listings():
     return initial_data
 
 def update_listing_price(listingId,calendarDate,price,pricewithfees):
-  cursor = connection.cursor()    
-  sql_select_query = """Update availability set price= %s,pricewithfees= %s where listingId = %s and calendarDate = %s """
-  val=(price,pricewithfees,listingId,calendarDate)
-  cursor.execute(sql_select_query,val)
-  connection.commit()
-  print(val)
+    cursor = connection.cursor()    
+    sql_select_query = """Update availability set price= %s,pricewithfees= %s where listingId = %s and calendarDate = %s """
+    val=(price,pricewithfees,listingId,calendarDate)
+    cursor.execute(sql_select_query,val)
+    connection.commit()
+    print(val)
 
 def update_datedata(listingId,calendarDate,priceDate,Price):
     cursor = connection.cursor()    
@@ -106,8 +73,6 @@ def update_datedata(listingId,calendarDate,priceDate,Price):
     print(val)
 
 if __name__ == "__main__":
-    open_ssh_tunnel()
-    mysql_connect()
     listings=get_listings()
     driver=newBrowser()
     COUNTER=0
