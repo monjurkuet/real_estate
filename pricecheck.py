@@ -124,3 +124,4 @@ if __name__ == "__main__":
                     print(e)
     print('Crawling complete....') 
     conn.close()
+    driver.quit()

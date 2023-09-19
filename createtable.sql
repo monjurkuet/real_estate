@@ -42,4 +42,4 @@ CREATE TABLE "listings" (
     PRIMARY KEY("listingId")
 )
 --
-CREATE VIEW "average_daily_price" AS SELECT listingId,calendarDate,price,avg(price) FROM datedata GROUP by calendarDate
+CREATE VIEW "average_daily_price" AS SELECT listingId,calendarDate,price,avg(price) FROM datedata GROUP by listingId,calendarDate
