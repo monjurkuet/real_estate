@@ -10,6 +10,7 @@ from datetime import datetime
 import sqlite3
 import re
 import json
+from tqdm import tqdm
 
 # Constants for file paths
 USER_DATA_DIR_WINDOWS = "D:\\airbnbscrapingprofile"
@@ -69,20 +70,42 @@ def get_listings():
     print('Total rows : ',len(rows))
     return initial_data
 
-def update_datedata(listingId,calendarDate,priceDate,Price):
+def update_datedata(listingId,calendarDate,priceDate,Price,booked_days):
     sql_insert_with_param = """REPLACE INTO datedata
-                            (listingId,calendarDate,priceDate,Price) 
-                            VALUES (?,?,?,?);"""
-    val = (listingId,calendarDate,priceDate,Price)
+                            (listingId,calendarDate,priceDate,Price,booked_days) 
+                            VALUES (?,?,?,?,?);"""
+    val = (listingId,calendarDate,priceDate,Price,booked_days)
     cursor.execute(sql_insert_with_param , val)
     conn.commit() 
     print(val)
+
+def crawl_price_data(listing,minNights,driver):
+    try:
+        listingId=listing['listingId']
+        calendarDate=listing['calendarDate']
+        checkindate=parser.parse(calendarDate)
+        checkoutdate=checkindate+ timedelta(days=minNights)
+        listingurl=f'https://www.airbnb.com/rooms/{listingId}?check_in={checkindate.strftime("%Y-%m-%d")}&check_out={checkoutdate.strftime("%Y-%m-%d")}&display_currency=USD'
+        driver.get(listingurl)
+        waitfor(driver,'//div[@data-section-id="BOOK_IT_SIDEBAR"]')
+        time.sleep(random.uniform(1,10))
+        details_content=extract_realtime_data(driver)
+        if 'Those dates are not available' not in json.dumps(details_content):
+            try:
+                price=re.search(r'"price": "(.*?)"', json.dumps(details_content)).group(1).strip().split('$')[1].replace(',','')
+            except:
+                price=re.search(r'"discountedPrice": "(.*?)"', json.dumps(details_content)).group(1).strip().split('$')[1].replace(',','')
+            for i in range(minNights):
+                priceDate=(checkindate+ timedelta(days=i)).strftime("%Y-%m-%d")
+                update_datedata(listingId,calendarDate,priceDate,price,minNights)
+    except Exception as e:
+        print(e)
 
 if __name__ == "__main__":
     listings=get_listings()
     driver=new_browser()
     COUNTER=0
-    for listing in listings:
+    for listing in tqdm(listings):
         COUNTER+=1
         if COUNTER%250==0:
             try:
@@ -91,24 +114,13 @@ if __name__ == "__main__":
                 driver=new_browser()
             except Exception as e:
                 print(e) 
-        try:
-            listingId=listing['listingId']
-            calendarDate=listing['calendarDate']
-            minNights=listing['minNights']
-            checkindate=parser.parse(calendarDate)
-            checkoutdate=checkindate+ timedelta(days=minNights)
-            listingurl=f'https://www.airbnb.com/rooms/{listingId}?check_in={checkindate.strftime("%Y-%m-%d")}&check_out={checkoutdate.strftime("%Y-%m-%d")}&display_currency=USD'
-            driver.get(listingurl)
-            waitfor(driver,'//div[@data-section-id="BOOK_IT_SIDEBAR"]')
-            time.sleep(random.uniform(1,10))
-            details_content=extract_realtime_data(driver)
-            try:
-                price=re.search(r'"price": "(.*?)"', json.dumps(details_content)).group(1).strip().split('$')[1].replace(',','')
-            except:
-                price=re.search(r'"discountedPrice": "(.*?)"', json.dumps(details_content)).group(1).strip().split('$')[1].replace(',','')
-            for i in range(minNights):
-                priceDate=(checkindate+ timedelta(days=i)).strftime("%Y-%m-%d")
-                update_datedata(listingId,calendarDate,priceDate,price,booked_days)
-        except Exception as e:
-            print(e)
+        minNights=listing['minNights']
+        crawl_price_data(listing,minNights,driver)
+        if minNights==1:
+            for i in range(2,4):
+                try:
+                    crawl_price_data(listing,i,driver)
+                except Exception as e:
+                    print(e)
+    print('Crawling complete....') 
     conn.close()
