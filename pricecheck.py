@@ -4,81 +4,63 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
 from seleniumwire.utils import decode
 import time,getpass,platform,random
-from datetime import datetime
-import sshtunnel
-from sshtunnel import SSHTunnelForwarder
-import pymysql
-import logging
 from dateutil import parser
 from datetime import timedelta
-# myql ssh tunnel
-ssh_host = '161.97.97.183'
-ssh_username = 'root'
-ssh_password = '$C0NTaB0vps8765%%$#'
-database_username = 'root'
-database_password = '$C0NTaB0vps8765%%$#'
-database_name = 'airbnb'
-localhost = '127.0.0.1'
-PROXY=0
-INCOGNITO=0
+from datetime import datetime
+import sqlite3
+import re
+import json
+from tqdm import tqdm
 
-def open_ssh_tunnel(verbose=False):
-    if verbose:
-        sshtunnel.DEFAULT_LOGLEVEL = logging.DEBUG
-    global tunnel
-    tunnel = SSHTunnelForwarder(
-        (ssh_host, 22),
-        ssh_username = ssh_username,
-        ssh_password = ssh_password,
-        remote_bind_address = ('127.0.0.1', 3306)
-    )
-    tunnel.start()
+# Constants for file paths
+USER_DATA_DIR_WINDOWS = "D:\\airbnbscrapingprofile"
+USER_DATA_DIR_LINUX = f"/home/{getpass.getuser()}/airbnbscrapingprofile"
+BROWSER_EXECUTABLE_PATH_WINDOWS = 'C:\\Program Files\\BraveSoftware\\Brave-Browser\\Application\\brave.exe'
+BROWSER_EXECUTABLE_PATH_LINUX = '/usr/bin/brave-browser'
 
-def mysql_connect():
-    global connection
-    connection = pymysql.connect(
-        host='127.0.0.1',
-        user=database_username,
-        passwd=database_password,
-        db=database_name,
-        port=tunnel.local_bind_port
-    )
+# Constants for API URLs
+DETAILS_API = 'https://www.airbnb.com/api/v3/StaysPdpSections'
 
-def waitfor(xpth):
- try: 
-  WebDriverWait(driver, 30).until(EC.presence_of_element_located((By.XPATH, xpth)))
- except:
-   pass 
+#Fix variables for python
+null=None
+true=True
+false=False
 
-def newBrowser():
-    SYSTEM_OS=platform.system()
-    if SYSTEM_OS=='Windows':
-        user_data_dir="G:\\airbnbscrapingprofile"
-        browser_executable_path='C:\\Program Files\\BraveSoftware\\Brave-Browser\\Application\\brave.exe'
-    if SYSTEM_OS=='Linux':
-        CURRENTUSER=getpass.getuser()
-        user_data_dir=f"/home/{CURRENTUSER}/airbnbscrapingprofile"
-        browser_executable_path='/usr/bin/brave-browser'
-    options = uc.ChromeOptions()
-    if INCOGNITO==1:
-        options.add_argument("--incognito")
-    if PROXY==1:
-        driver=uc.Chrome(user_data_dir=user_data_dir,
-                        browser_executable_path=browser_executable_path,version_main=113,options=options,
-                        headless=False,seleniumwire_options={
-            'proxy': {
-                'http': "http://45.85.147.136:24003",
-                'https': "http://45.85.147.136:24003"
-                    }
-                })
-    else:
-        driver=uc.Chrome(user_data_dir=user_data_dir,
-                        browser_executable_path=browser_executable_path,version_main=113,options=options,
-                        headless=False)
+# Connect to the database (creates a new one if it doesn't exist)
+conn = sqlite3.connect('database.db')
+cursor = conn.cursor()
+
+# waitfor
+def waitfor(driver,xpth):
+    try: 
+        WebDriverWait(driver, 30).until(EC.presence_of_element_located((By.XPATH, xpth)))
+    except:
+        pass 
+
+#extract data
+def extract_realtime_data(driver):
+    details_content = None
+    for request in driver.requests:
+        if request.response:
+            if DETAILS_API in request.url and request.response.status_code == 200:
+                details_content = eval(decode(request.response.body, request.response.headers.get('Content-Encoding', 'identity')).decode('utf-8'))
+    if details_content is not None:
+        details_content = details_content['data']
+    return details_content
+
+# Create a reusable browser function
+def new_browser():
+    SYSTEM_OS = platform.system()
+    if SYSTEM_OS == 'Windows':
+        user_data_dir = USER_DATA_DIR_WINDOWS
+        browser_executable_path = BROWSER_EXECUTABLE_PATH_WINDOWS
+    elif SYSTEM_OS == 'Linux':
+        user_data_dir = USER_DATA_DIR_LINUX
+        browser_executable_path = BROWSER_EXECUTABLE_PATH_LINUX
+    driver = uc.Chrome(user_data_dir=user_data_dir, browser_executable_path=browser_executable_path, headless=False)
     return driver
 
-def get_listings():
-    cursor = connection.cursor()         
+def get_listings():       
     cursor.execute("SELECT * FROM `availability` WHERE available=1")
     rows=cursor.fetchall()   
     row_headers=[x[0] for x in cursor.description] 
@@ -88,43 +70,57 @@ def get_listings():
     print('Total rows : ',len(rows))
     return initial_data
 
-def update_listing_price(listingId,calendarDate,price,pricewithfees):
-  cursor = connection.cursor()    
-  sql_select_query = """Update availability set price= %s,pricewithfees= %s where listingId = %s and calendarDate = %s """
-  val=(price,pricewithfees,listingId,calendarDate)
-  cursor.execute(sql_select_query,val)
-  connection.commit()
-  print(val)
+def update_datedata(listingId,calendarDate,priceDate,Price,booked_days):
+    sql_insert_with_param = """REPLACE INTO datedata
+                            (listingId,calendarDate,priceDate,Price,booked_days) 
+                            VALUES (?,?,?,?,?);"""
+    val = (listingId,calendarDate,priceDate,Price,booked_days)
+    cursor.execute(sql_insert_with_param , val)
+    conn.commit() 
+    print(val)
+
+def crawl_price_data(listing,minNights,driver):
+    try:
+        listingId=listing['listingId']
+        calendarDate=listing['calendarDate']
+        checkindate=parser.parse(calendarDate)
+        checkoutdate=checkindate+ timedelta(days=minNights)
+        listingurl=f'https://www.airbnb.com/rooms/{listingId}?check_in={checkindate.strftime("%Y-%m-%d")}&check_out={checkoutdate.strftime("%Y-%m-%d")}&display_currency=USD'
+        driver.get(listingurl)
+        waitfor(driver,'//div[@data-section-id="BOOK_IT_SIDEBAR"]')
+        time.sleep(random.uniform(1,10))
+        details_content=extract_realtime_data(driver)
+        if 'Those dates are not available' not in json.dumps(details_content):
+            try:
+                price=re.search(r'"price": "(.*?)"', json.dumps(details_content)).group(1).strip().split('$')[1].replace(',','')
+            except:
+                price=re.search(r'"discountedPrice": "(.*?)"', json.dumps(details_content)).group(1).strip().split('$')[1].replace(',','')
+            for i in range(minNights):
+                priceDate=(checkindate+ timedelta(days=i)).strftime("%Y-%m-%d")
+                update_datedata(listingId,calendarDate,priceDate,price,minNights)
+    except Exception as e:
+        print(e)
 
 if __name__ == "__main__":
-    open_ssh_tunnel()
-    mysql_connect()
     listings=get_listings()
-    driver=newBrowser()
+    driver=new_browser()
     COUNTER=0
-    for listing in listings:
+    for listing in tqdm(listings):
         COUNTER+=1
         if COUNTER%250==0:
             try:
                 driver.close()
                 driver.quit()
-                driver=newBrowser()
+                driver=new_browser()
             except Exception as e:
                 print(e) 
-        try:
-            listingId=listing['listingId']
-            calendarDate=listing['calendarDate']
-            minNights=listing['minNights']
-            checkindate=parser.parse(calendarDate)
-            checkoutdate=checkindate+ timedelta(days=minNights)
-            listingurl=f'https://www.airbnb.com/rooms/{listingId}?check_in={checkindate.strftime("%Y-%m-%d")}&check_out={checkoutdate.strftime("%Y-%m-%d")}'
-            driver.get(listingurl)
-            waitfor('//div[@data-section-id="BOOK_IT_SIDEBAR"]//span[@class="_tyxjp1"]')
-            time.sleep(random.uniform(1,10))
-            price=driver.find_element('xpath','//div[@data-section-id="BOOK_IT_SIDEBAR"]//span[@class="_tyxjp1"]').text.strip().split('$')[1].replace(',','')
-            pricewithfees=0
-            update_listing_price(listingId,calendarDate,price,pricewithfees)
-        except Exception as e:
-            print(e)
-    connection.close()
-    tunnel.close
+        minNights=listing['minNights']
+        crawl_price_data(listing,minNights,driver)
+        if minNights==1:
+            for i in range(2,4):
+                try:
+                    crawl_price_data(listing,i,driver)
+                except Exception as e:
+                    print(e)
+    print('Crawling complete....') 
+    conn.close()
