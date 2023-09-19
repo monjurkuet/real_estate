@@ -6,25 +6,36 @@ from seleniumwire.utils import decode
 import time,getpass,platform,random
 from dateutil import parser
 from datetime import timedelta
+from datetime import datetime
 import sqlite3
 import re
+import json
 
 # Constants for file paths
 USER_DATA_DIR_WINDOWS = "D:\\airbnbscrapingprofile"
 USER_DATA_DIR_LINUX = f"/home/{getpass.getuser()}/airbnbscrapingprofile"
 BROWSER_EXECUTABLE_PATH_WINDOWS = 'C:\\Program Files\\BraveSoftware\\Brave-Browser\\Application\\brave.exe'
 BROWSER_EXECUTABLE_PATH_LINUX = '/usr/bin/brave-browser'
+
 # Constants for API URLs
 DETAILS_API = 'https://www.airbnb.com/api/v3/StaysPdpSections'
+
+#Fix variables for python
+null=None
+true=True
+false=False
+
 # Connect to the database (creates a new one if it doesn't exist)
 conn = sqlite3.connect('database.db')
 cursor = conn.cursor()
+
 # waitfor
 def waitfor(driver,xpth):
     try: 
         WebDriverWait(driver, 30).until(EC.presence_of_element_located((By.XPATH, xpth)))
     except:
         pass 
+
 #extract data
 def extract_realtime_data(driver):
     details_content = None
@@ -35,6 +46,7 @@ def extract_realtime_data(driver):
     if details_content is not None:
         details_content = details_content['data']
     return details_content
+
 # Create a reusable browser function
 def new_browser():
     SYSTEM_OS = platform.system()
@@ -57,17 +69,10 @@ def get_listings():
     print('Total rows : ',len(rows))
     return initial_data
 
-def update_listing_price(listingId,calendarDate,price,pricewithfees):  
-    sql_select_query = """Update availability set price= %s,pricewithfees= %s where listingId = %s and calendarDate = %s """
-    val=(price,pricewithfees,listingId,calendarDate)
-    cursor.execute(sql_select_query,val)
-    conn.commit()
-    print(val)
-
 def update_datedata(listingId,calendarDate,priceDate,Price):
     sql_insert_with_param = """REPLACE INTO datedata
                             (listingId,calendarDate,priceDate,Price) 
-                            VALUES (%s,%s,%s,%s);"""
+                            VALUES (?,?,?,?);"""
     val = (listingId,calendarDate,priceDate,Price)
     cursor.execute(sql_insert_with_param , val)
     conn.commit() 
@@ -92,22 +97,18 @@ if __name__ == "__main__":
             minNights=listing['minNights']
             checkindate=parser.parse(calendarDate)
             checkoutdate=checkindate+ timedelta(days=minNights)
-            listingurl=f'https://www.airbnb.com/rooms/{listingId}?check_in={checkindate.strftime("%Y-%m-%d")}&check_out={checkoutdate.strftime("%Y-%m-%d")}'
+            listingurl=f'https://www.airbnb.com/rooms/{listingId}?check_in={checkindate.strftime("%Y-%m-%d")}&check_out={checkoutdate.strftime("%Y-%m-%d")}&display_currency=USD'
             driver.get(listingurl)
-            waitfor(driver,'//div[@data-section-id="BOOK_IT_SIDEBAR"]//span[@class="_tyxjp1"]')
+            waitfor(driver,'//div[@data-section-id="BOOK_IT_SIDEBAR"]')
             time.sleep(random.uniform(1,10))
             details_content=extract_realtime_data(driver)
             try:
-                details_content.presentation.stayProductDetailPage.sections.sections[0].section.structuredDisplayPrice
-                price=details_content['presentation']['stayProductDetailPage']['sections']['sections'][0]['section']['structuredDisplayPrice']['primaryLine']['discountedPrice']
+                price=re.search(r'"price": "(.*?)"', json.dumps(details_content)).group(1).strip().split('$')[1].replace(',','')
             except:
-                price=re.search(r'"discountedPrice":(.*?),"', str(details_content)).group(1).strip().split('$')[1].replace(',','')
-            pricewithfees=0
-            update_listing_price(listingId,calendarDate,price,pricewithfees)
+                price=re.search(r'"discountedPrice": "(.*?)"', json.dumps(details_content)).group(1).strip().split('$')[1].replace(',','')
             for i in range(minNights):
                 priceDate=(checkindate+ timedelta(days=i)).strftime("%Y-%m-%d")
-                update_datedata(listingId,calendarDate,priceDate,price)
+                update_datedata(listingId,calendarDate,priceDate,price,booked_days)
         except Exception as e:
             print(e)
-    connection.close()
-    tunnel.close
+    conn.close()
