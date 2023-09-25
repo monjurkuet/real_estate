@@ -1,6 +1,7 @@
 import seleniumwire.undetected_chromedriver as uc
 from seleniumwire.utils import decode
 from selenium.webdriver.common.keys import Keys
+from selenium.webdriver.common.by import By
 import time
 import getpass
 import platform
@@ -95,10 +96,7 @@ while True and RETRYCOUNTER!=5:
     driver.execute_script("arguments[0].scrollIntoView();", driver.find_elements(By.XPATH, '//img[@alt="carousel_image_0"]')[-1])
     # Wait to load page
     time.sleep(10)
-    RETRYCOUNTER-=1
-
-    
-
+    RETRYCOUNTER=0
 
 conn.close()
 driver.close()
