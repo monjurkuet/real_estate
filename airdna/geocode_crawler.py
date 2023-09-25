@@ -31,3 +31,5 @@ for latitude,longitude in geocodes:
     conn.commit()
     print(data_tuple)
     time.sleep(1)
+
+conn.close()

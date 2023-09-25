@@ -6,7 +6,6 @@ from seleniumwire.utils import decode
 import time,getpass,platform,random
 from dateutil import parser
 from datetime import timedelta
-from datetime import datetime
 import sqlite3
 import re
 import json
