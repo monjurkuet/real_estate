@@ -4,6 +4,7 @@ import requests as rq
 import time
 import sqlite3
 import json
+
 base_url='https://nominatim.openstreetmap.org/reverse?format=json&lat={latitude}&lon={longitude}&email=muhamad.manjur@outlook.com'
 
 ua = UserAgent()

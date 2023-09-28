@@ -12,7 +12,8 @@ import json
 from tqdm import tqdm
 
 # Constants for file paths
-BROWSER_EXECUTABLE_PATH_WINDOWS = 'C:\\Program Files\\BraveSoftware\\Brave-Browser\\Application\\brave.exe'
+BROWSER_EXECUTABLE_PATH_WINDOWS = "C:\\Users\\muham\\AppData\\Local\\BraveSoftware\\Brave-Browser\\Application\\brave.exe"
+#BROWSER_EXECUTABLE_PATH_WINDOWS = 'C:\\Program Files\\BraveSoftware\\Brave-Browser\\Application\\brave.exe'
 BROWSER_EXECUTABLE_PATH_LINUX = '/usr/bin/brave-browser'
 
 # Constants for API URLs
@@ -67,7 +68,7 @@ def get_listings():
 driver=new_browser()
 queue=get_listings()
 
-for each_property in queue:
+for each_property in queue[:1]:
     geoid=each_property['geoid']
     address=each_property['display_name']
     driver.get(SEARCH_URL+address)
