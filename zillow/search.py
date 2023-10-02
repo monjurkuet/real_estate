@@ -1,8 +1,8 @@
-import undetected_chromedriver as uc
-from selenium.webdriver.common.action_chains import ActionChains
+import seleniumwire.undetected_chromedriver as uc
 from selenium.webdriver.support.wait import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
+from seleniumwire.utils import decode
 import time,getpass,platform,random
 from dateutil import parser
 from datetime import timedelta
@@ -11,6 +11,7 @@ import re
 import json
 from tqdm import tqdm
 import pandas as pd
+import io
 
 # Constants for file paths
 BROWSER_EXECUTABLE_PATH_WINDOWS = "C:\\Users\\muham\\AppData\\Local\\BraveSoftware\\Brave-Browser\\Application\\brave.exe"
@@ -29,11 +30,6 @@ false=False
 conn = sqlite3.connect('database.db')
 cursor = conn.cursor()
 
-def samelineprint(msg):
-   LINE_FLUSH = '\r\033[K'
-   UP_FRONT_LINE = '\033[F'
-   print(UP_FRONT_LINE + LINE_FLUSH + str(msg))
-
 # waitfor
 def waitfor(driver,xpth):
     try: 
@@ -41,6 +37,17 @@ def waitfor(driver,xpth):
     except:
         pass 
 
+#extract data
+def extract_realtime_data(driver):
+    details_content = None
+    for request in driver.requests:
+        if request.response:
+            if DETAILS_API in request.url and request.response.status_code == 200:
+                details_content = eval(decode(request.response.body, request.response.headers.get('Content-Encoding', 'identity')).decode('utf-8'))
+    if details_content is not None:
+        details_content = details_content['data']
+    del driver.requests
+    return details_content
 
 def new_browser():
     SYSTEM_OS = platform.system()
@@ -50,38 +57,8 @@ def new_browser():
     driver = uc.Chrome(browser_executable_path=browser_executable_path, headless=False)
     return driver
 
-def solve_blocked(browser):
-    try:
-        element = WebDriverWait(browser,15).until(EC.presence_of_element_located((By.ID,'px-captcha')))
-        # Wait for the px-captcha element styles to fully load
-        time.sleep(0.5)
-    except BaseException as e:
-        samelineprint(f'px-captcha element not found')
-        return
-    samelineprint(f'solve blocked:{browser.current_url}')
-    if  element:
-        samelineprint(f'start press and hold')
-        ActionChains(browser).click_and_hold(element).perform()
-        start_time = time.time()
-        while 1:
-            if time.time() - start_time > random.uniform(8,10):
-                ActionChains(browser).release(element).perform()
-                return
-            time.sleep(0.1)
-    time.sleep(1)
-
-def check_captcha(driver,url):
-    captchapresence=len(driver.find_elements(By.ID,'px-captcha'))
-    if not captchapresence:
-        return
-    solve_blocked(driver)
-    time.sleep(5)
-    driver.get(url)
-    time.sleep(5)
-    check_captcha(driver,url)
-
 def get_listings():       
-    cursor.execute("SELECT * FROM 'airdna+address' WHERE class in ('building','place')")
+    cursor.execute("SELECT * FROM 'airdna+address' WHERE class in ('building','place') and geoid not in (Select geoid from 'zillow')")
     rows=cursor.fetchall()   
     row_headers=[x[0] for x in cursor.description] 
     initial_data=[]
@@ -91,28 +68,35 @@ def get_listings():
     return initial_data
 
 driver=new_browser()
-URL='https://www.zillow.com/'
-driver.get(URL)
-check_captcha(driver,URL)
 queue=get_listings()
 
-for each_property in queue[:1]:
+for each_property in queue:
     geoid=each_property['geoid']
     address=each_property['display_name']
-    URL=SEARCH_URL+address
-    driver.get(URL)
-    check_captcha(driver,URL)
+    driver.get(SEARCH_URL+address)
+    if 'No matching results' in driver.page_source:
+        continue
     zpid=re.search(r'"zpid":"(\d+)"', driver.page_source).group(1)
-    address_=driver.title.split('|')[0].strip()
-    zpid=re.search(r'"zpid":"(\d+)"', driver.page_source).group(1)
-    zestimate=driver.find_element(By.XPATH,'//span[@data-testid="zestimate-text"]//span').text.strip().replace("$", "").replace(",", "")
-    rentZestimate=driver.find_element(By.XPATH,'//button[text()="Rent Zestimate"]/following::*').text.strip().replace("$", "").replace(",", "")
-    taxAssessedValue=driver.find_element(By.XPATH,'//table[@aria-label="Table of tax history"]').text
-
-df_list = pd.read_html(driver.find_element(By.XPATH,'//table[@aria-label="Table of tax history"]'))
-
-# Extract the table from the dataframe
-table = df_list[0]
-
-# Access the data in the table
-data = table.to_dict('records')
+    zestimate=driver.find_element(By.XPATH,'//button[text()="Zestimate"]/following::*').text.replace('$','').replace(',','')
+    rentZestimate=driver.find_element(By.XPATH,'//button[text()="Rent Zestimate"]/following::*').text.replace('$','').replace(',','')
+    buffer = io.StringIO(driver.page_source)
+    if 'Tax assessment' in taxAssessedValue:
+        taxAssessedValue=pd.read_html(buffer)[0]['Tax assessment'][0].split(' ')[0].replace('$','').replace(',','')
+        property_tax=pd.read_html(buffer)[0]['Property taxes'][0].split(' ')[0].replace('$','').replace(',','')
+    livingArea=re.search(r'Total interior livable area:\s*(\d{1,3}(?:,\d{3})*(?:\.\d+)?)\s*sqft', driver.page_source).group(1).replace(',','')
+    lotAreaValue=re.search(r'Lot size:\s*(\d{1,3}(?:,\d{3})*(?:\.\d+)?)\s*sqft', driver.page_source).group(1).replace(',','')
+    bathrooms=driver.find_element(By.XPATH,'//span[text()="bd"]//parent::*').text.split(' ')[0]
+    bedrooms=driver.find_element(By.XPATH,'//span[text()="ba"]//parent::*').text.split(' ')[0]
+    latitude=re.search(r'"latitude":(-?\d+\.\d+)', driver.page_source).group(1)
+    longitude=re.search(r'"longitude":(-?\d+\.\d+)', driver.page_source).group(1)
+    year_built=driver.find_element(By.XPATH,'//span[text()="Year built:"]/following::*').text
+    # Define the INSERT statement
+    sqlite_insert_with_param = """REPLACE INTO zillow
+                        (zpid, geoid, zestimate, rentZestimate, taxAssessedValue, livingArea, lotAreaValue, bathrooms, bedrooms, latitude, longitude, year_built, property_tax) 
+                        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?);""" 
+    data_tuple = (zpid, geoid, zestimate, rentZestimate, taxAssessedValue, livingArea, lotAreaValue, bathrooms, bedrooms, latitude, longitude, year_built, property_tax)
+    cursor.execute(sqlite_insert_with_param, data_tuple)
+    # Commit the changes to the database
+    conn.commit()
+    print(data_tuple)
+    time.sleep(random.uniform(3,9))
