@@ -1,3 +1,5 @@
 database.db
 config.py
 __pycache__
+*.fuse*
+.html

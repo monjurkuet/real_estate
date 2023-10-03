@@ -8,14 +8,29 @@ import subprocess
 import signal
 import os
 import sqlite3
+from bs4 import BeautifulSoup
 
 mitmprocess_command = f"mitmdump -s mitmSave.py -p 2191"
 browserprocess_command = f"chromium-browser --proxy-server=127.0.0.1:2191 &>/dev/null &"
+SEARCH_URL='https://www.zillow.com/homes/'
 # Connect to the database (creates a new one if it doesn't exist)
 conn = sqlite3.connect('database.db')
 cursor = conn.cursor()
 
 browserprocess = subprocess.Popen(browserprocess_command, stdout=subprocess.PIPE,shell=True, preexec_fn=os.setsid, stderr=subprocess.PIPE)
+
+def enter_navbar_text(textvalue):
+    subprocess.run(['wmctrl','-xa','chromium'])
+    time.sleep(.5)
+    pyautogui.hotkey('alt', 'd')
+    time.sleep(.5)
+    pyautogui.press('backspace') 
+    time.sleep(.5)
+    pyautogui.write(textvalue+'/', interval=0.05)
+    time.sleep(.5)
+    pyautogui.press('backspace') 
+    time.sleep(.5)
+    pyautogui.press('enter')
 
 def get_listings():       
     cursor.execute("SELECT * FROM 'airdna+address' WHERE class in ('building','place') and geoid not in (Select geoid from 'zillow')")
@@ -29,10 +44,10 @@ def get_listings():
 
 queue=get_listings()
 
-for each_property in queue:
+for each_property in queue[:1]:
     geoid=each_property['geoid']
     address=each_property['display_name']
-    driver.get(SEARCH_URL+address)
+    enter_navbar_text(SEARCH_URL+address)
     if 'No matching results' in driver.page_source:
         continue
     zpid=re.search(r'"zpid":"(\d+)"', driver.page_source).group(1)
@@ -59,3 +74,77 @@ for each_property in queue:
     conn.commit()
     print(data_tuple)
     time.sleep(random.uniform(3,9))
+
+with open('zillowdata.html','r') as f:
+        htmldata=f.read()
+
+# Assuming you have the HTML content as a string
+html_content = htmldata  # Replace this with your HTML content
+
+# Parse the HTML with BeautifulSoup
+soup = BeautifulSoup(html_content, 'lxml')
+
+# Extract zpid using regex
+zpid_match = re.search(r'"zpid":"(\d+)"', html_content)
+if zpid_match:
+    zpid = zpid_match.group(1)
+else:
+    zpid = None
+
+# Extract zestimate and rentZestimate
+zestimate_element = soup.find('button', text='Zestimate').find_next()
+zestimate = zestimate_element.get_text(strip=True).replace('$', '').replace(',', '')
+
+rent_zestimate_element = soup.find(text='Rent Zestimate').find_next_sibling().find_next()
+rentZestimate = rent_zestimate_element.get_text(strip=True).replace('$', '').replace(',', '')
+
+# Extract taxAssessedValue and property_tax
+tax_assessed_value = None
+property_tax = None
+
+if 'Tax assessment' in html_content:
+    df = pd.read_html(io.StringIO(html_content))[0]
+    if 'Tax assessment' in df.columns:
+        tax_assessed_value = df['Tax assessment'][0].split(' ')[0].replace('$', '').replace(',', '')
+    if 'Property taxes' in df.columns:
+        property_tax = df['Property taxes'][0].split(' ')[0].replace('$', '').replace(',', '')
+
+# Extract livingArea and lotAreaValue
+living_area_match = re.search(r'Total interior livable area:\s*(\d{1,3}(?:,\d{3})*(?:\.\d+)?)\s*sqft', html_content)
+if living_area_match:
+    livingArea = living_area_match.group(1).replace(',', '')
+else:
+    livingArea = None
+
+lot_area_value_match = re.search(r'Lot size:\s*(\d{1,3}(?:,\d{3})*(?:\.\d+)?)\s*sqft', html_content)
+if lot_area_value_match:
+    lotAreaValue = lot_area_value_match.group(1).replace(',', '')
+else:
+    lotAreaValue = None
+
+# Extract bathrooms and bedrooms
+bathrooms_element = soup.find(text='bd').find_parent()
+bathrooms = bathrooms_element.get_text(strip=True).split(' ')[0]
+
+bedrooms_element = soup.find(text='ba').find_parent()
+bedrooms = bedrooms_element.get_text(strip=True).split(' ')[0]
+
+# Extract latitude, longitude, and year_built
+latitude_match = re.search(r'"latitude":(-?\d+\.\d+)', html_content)
+if latitude_match:
+    latitude = latitude_match.group(1)
+else:
+    latitude = None
+
+longitude_match = re.search(r'"longitude":(-?\d+\.\d+)', html_content)
+if longitude_match:
+    longitude = longitude_match.group(1)
+else:
+    longitude = None
+
+year_built_element = soup.find(text='Year built:').find_next_sibling()
+year_built = year_built_element.get_text(strip=True)
+
+domain=extract_data(htmldata)
+savetodatabase(linkedin_url,domain)
+os.remove('companyhtmldata.html')
