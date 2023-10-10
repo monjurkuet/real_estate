@@ -63,7 +63,10 @@ def extract_data(queue):
         else:
             taxAssessedValue=None
         if 'Property taxes' in driver.page_source:
-            property_tax=pd.read_html(buffer)[-1]['Property taxes'][0].split(' ')[0].replace('$','').replace(',','')
+            try:
+                property_tax=pd.read_html(buffer)[-1]['Property taxes'][0].split(' ')[0].replace('$','').replace(',','')
+            except:
+                property_tax=None
         else:
             property_tax=None
         if 'Total interior livable area' in driver.page_source:
