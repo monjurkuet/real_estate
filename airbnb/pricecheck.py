@@ -94,6 +94,8 @@ def crawl_price_data(listing,minNights,driver):
                 price=re.search(r'"price": "(.*?)"', json.dumps(details_content)).group(1).strip().split('$')[1].replace(',','')
             except:
                 price=re.search(r'"discountedPrice": "(.*?)"', json.dumps(details_content)).group(1).strip().split('$')[1].replace(',','')
+            cleaning_fee=driver.find_element(By.XPATH,'//*[text()="Cleaning fee"]/following::*/following::*').text.strip().split('$')[1].replace(',','')
+            service_fee=driver.find_element(By.XPATH,'//*[text()="Airbnb service fee"]/following::*/following::*').text.strip().split('$')[1].replace(',','')
             for i in range(minNights):
                 priceDate=(checkindate+ timedelta(days=i)).strftime("%Y-%m-%d")
                 update_datedata(listingId,calendarDate,priceDate,price,minNights)
