@@ -51,7 +51,10 @@ def extract_data(queue):
             continue
         if not driver.find_elements(By.XPATH,'//button[text()="Zestimate"]/following::*'):
             continue
-        zpid=re.search(r'"zpid":"(\d+)"', driver.page_source).group(1)
+        try:
+            zpid=re.search(r'"zpid":"(\d+)"', driver.page_source).group(1)
+        except:
+            zpid=re.search(r'"zpid\\\":(\d+),', driver.page_source).group(1)
         zestimate=driver.find_element(By.XPATH,'//button[text()="Zestimate"]/following::*').text.replace('$','').replace(',','')
         if driver.find_elements(By.XPATH,'//button[text()="Rent Zestimate"]/following::*'):
             rentZestimate=driver.find_element(By.XPATH,'//button[text()="Rent Zestimate"]/following::*').text.replace('$','').replace(',','')
