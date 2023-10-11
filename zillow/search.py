@@ -47,6 +47,7 @@ def extract_data(queue):
         enter_navbar_text(SEARCH_URL+address)
         time.sleep(15)
         driver.get('file:///home/shovon/Desktop/vm shared folder/github/airbnb/zillow/zillowdata.html')
+        time.sleep(10)
         if 'No matching results' in driver.page_source:
             continue
         if not driver.find_elements(By.XPATH,'//button[text()="Zestimate"]/following::*'):
@@ -62,12 +63,16 @@ def extract_data(queue):
             rentZestimate=None
         buffer = io.StringIO(driver.page_source)
         if 'Tax assessment' in driver.page_source:
-            taxAssessedValue=pd.read_html(buffer)[-1]['Tax assessment'][0].split(' ')[0].replace('$','').replace(',','')
+            for each_table in pd.read_html(buffer):
+                if 'Tax assessment' in each_table:
+                    tax_table=each_table
+                    break
+            taxAssessedValue=tax_table['Tax assessment'][0].split(' ')[0].replace('$','').replace(',','')
         else:
             taxAssessedValue=None
         if 'Property taxes' in driver.page_source:
             try:
-                property_tax=pd.read_html(buffer)[-1]['Property taxes'][0].split(' ')[0].replace('$','').replace(',','')
+                property_tax=tax_table['Property taxes'][0].split(' ')[0].replace('$','').replace(',','')
             except:
                 property_tax=None
         else:
@@ -94,11 +99,21 @@ def extract_data(queue):
             year_built=driver.find_element(By.XPATH,'//span[text()="Year built:"]/following::*').text
         else:
             year_built=None
+        prior_sold_date=None
+        prior_sold_price=None
+        for each_table in pd.read_html(buffer):
+            if 'Price' in each_table:
+                price_table=each_table
+                for index,each_row in price_table.iterrows():
+                    prior_sold_date=each_row['Date']
+                    if '$' in each_row['Price']:
+                        prior_sold_price=each_row['Price'].split('$')[1].split('+')[0].split('-')[0]
+                        break
         # Define the INSERT statement
         sqlite_insert_with_param = """REPLACE INTO zillow
-                            (zpid, geoid, zestimate, rentZestimate, taxAssessedValue, livingArea, lotAreaValue, bathrooms, bedrooms, latitude, longitude, year_built, property_tax) 
-                            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?);""" 
-        data_tuple = (zpid, geoid, zestimate, rentZestimate, taxAssessedValue, livingArea, lotAreaValue, bathrooms, bedrooms, latitude, longitude, year_built, property_tax)
+                            (zpid, geoid, zestimate, rentZestimate, taxAssessedValue, livingArea, lotAreaValue, bathrooms, bedrooms, latitude, longitude, year_built, property_tax,prior_sold_date,prior_sold_price) 
+                            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?);""" 
+        data_tuple = (zpid, geoid, zestimate, rentZestimate, taxAssessedValue, livingArea, lotAreaValue, bathrooms, bedrooms, latitude, longitude, year_built, property_tax,prior_sold_date,prior_sold_price)
         cursor.execute(sqlite_insert_with_param, data_tuple)
         # Commit the changes to the database
         conn.commit()
