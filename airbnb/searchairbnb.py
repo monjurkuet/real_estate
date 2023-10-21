@@ -1,38 +1,26 @@
 import seleniumwire.undetected_chromedriver as uc
 from seleniumwire.utils import decode
 import time
-import getpass
-import platform
-import sqlite3
+import mysql.connector
 
 # Constants for API URLs
 AVAILABILITY_API = 'https://www.airbnb.com/api/v3/PdpAvailabilityCalendar'
 DETAILS_API = 'https://www.airbnb.com/api/v3/StaysPdpSections'
-# Constants for file paths
-USER_DATA_DIR_WINDOWS = "D:\\airbnbscrapingprofile"
-USER_DATA_DIR_LINUX = f"/home/{getpass.getuser()}/airbnbscrapingprofile"
-BROWSER_EXECUTABLE_PATH_WINDOWS = 'C:\\Program Files\\BraveSoftware\\Brave-Browser\\Application\\brave.exe'
-BROWSER_EXECUTABLE_PATH_LINUX = '/usr/bin/brave-browser'
 #Fix variables for python
 null=None
 true=True
 false=False
 
-# Connect to the database (creates a new one if it doesn't exist)
-conn = sqlite3.connect('database.db')
+# Connect to the database 
+conn = mysql.connector.connect(
+        host='localhost',
+        user='root',
+        password='root',
+        database='real_estate',
+        port=3306
+        )
 cursor = conn.cursor()
 
-# Create a reusable browser function
-def new_browser():
-    SYSTEM_OS = platform.system()
-    if SYSTEM_OS == 'Windows':
-        user_data_dir = USER_DATA_DIR_WINDOWS
-        browser_executable_path = BROWSER_EXECUTABLE_PATH_WINDOWS
-    elif SYSTEM_OS == 'Linux':
-        user_data_dir = USER_DATA_DIR_LINUX
-        browser_executable_path = BROWSER_EXECUTABLE_PATH_LINUX
-    driver = uc.Chrome(user_data_dir=user_data_dir, browser_executable_path=browser_executable_path, headless=False)
-    return driver
 # Create a reusable function for extracting real-time data
 def extract_realtime_data(driver):
     availability_content = None
@@ -48,27 +36,29 @@ def extract_realtime_data(driver):
         details_content = details_content['data']
     return availability_content, details_content
 
-def insert_details(listingId,listingLat,listingLng,bedType,roomType,personCapacity,descriptionLanguage,
-                    isSuperhost,accuracyRating,checkinRating,cleanlinessRating,communicationRating,locationRating,
-                    valueRating,guestSatisfactionOverall,visibleReviewCount,title):
-    # Insert the data into the "listings" table
-    cursor.execute('''REPLACE INTO listings (
+def insert_details(listingId, listingLat, listingLng, bedType, roomType, personCapacity, descriptionLanguage,
+                    isSuperhost, accuracyRating, checkinRating, cleanlinessRating, communicationRating, locationRating,
+                    valueRating, guestSatisfactionOverall, visibleReviewCount, title):
+    # Define the MySQL INSERT statement
+    insert_query = '''REPLACE INTO airbnb_listings (
         listingId, listingLat, listingLng, bedType, roomType, personCapacity, descriptionLanguage,
         isSuperhost, accuracyRating, checkinRating, cleanlinessRating, communicationRating, locationRating,
         valueRating, guestSatisfactionOverall, visibleReviewCount, title
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
-    (
-        listingId, listingLat, listingLng, bedType, roomType, personCapacity, descriptionLanguage,
-        isSuperhost, accuracyRating, checkinRating, cleanlinessRating, communicationRating, locationRating,
-        valueRating, guestSatisfactionOverall, visibleReviewCount, title
-    ))
-    conn.commit() 
-    print(f"Crawled PropertyId : {listingId}")
+    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)'''
+    # Define the parameter values
+    values = (listingId, listingLat, listingLng, bedType, roomType, personCapacity, descriptionLanguage,
+              isSuperhost, accuracyRating, checkinRating, cleanlinessRating, communicationRating, locationRating,
+              valueRating, guestSatisfactionOverall, visibleReviewCount, title)
+    # Execute the INSERT statement
+    cursor.execute(insert_query, values)
+    # Commit the transaction
+    conn.commit()
+    print(f"Crawled PropertyId: {listingId}")
 
 def insert_availability(listingId,available,calendarDate,maxNights,minNights,availableForCheckin,bookable):
-    sql_insert_with_param = """REPLACE INTO availability
+    sql_insert_with_param = """REPLACE INTO airbnb_availability
                             (listingId,available,calendarDate,maxNights,minNights,availableForCheckin,bookable) 
-                            VALUES (?, ?, ?, ?, ?, ?, ?);"""
+                            VALUES (%s, %s, %s, %s, %s, %s,%s);"""
     val = (listingId,available,calendarDate,maxNights,minNights,availableForCheckin,bookable)
     cursor.execute(sql_insert_with_param , val)
     conn.commit() 
@@ -78,7 +68,7 @@ def insert_availability(listingId,available,calendarDate,maxNights,minNights,ava
 ITEMS_LIST=["https://www.airbnb.com/rooms/plus/19017960?display_currency=USD",
             "https://www.airbnb.com/rooms/689828220112367064?display_currency=USD"]
 
-driver=new_browser()
+driver=uc.Chrome()
 time.sleep(10)
 
 for each_listing in ITEMS_LIST:
