@@ -6,16 +6,10 @@ from seleniumwire.utils import decode
 import time,getpass,platform,random
 from dateutil import parser
 from datetime import timedelta
-import sqlite3
+import mysql.connector
 import re
 import json
 from tqdm import tqdm
-
-# Constants for file paths
-USER_DATA_DIR_WINDOWS = "D:\\airbnbscrapingprofile"
-USER_DATA_DIR_LINUX = f"/home/{getpass.getuser()}/airbnbscrapingprofile"
-BROWSER_EXECUTABLE_PATH_WINDOWS = 'C:\\Program Files\\BraveSoftware\\Brave-Browser\\Application\\brave.exe'
-BROWSER_EXECUTABLE_PATH_LINUX = '/usr/bin/brave-browser'
 
 # Constants for API URLs
 DETAILS_API = 'https://www.airbnb.com/api/v3/StaysPdpSections'
@@ -25,8 +19,14 @@ null=None
 true=True
 false=False
 
-# Connect to the database (creates a new one if it doesn't exist)
-conn = sqlite3.connect('database.db')
+# Connect to the database 
+conn = mysql.connector.connect(
+        host='localhost',
+        user='root',
+        password='root',
+        database='real_estate',
+        port=3306
+        )
 cursor = conn.cursor()
 
 # waitfor
@@ -46,18 +46,6 @@ def extract_realtime_data(driver):
     if details_content is not None:
         details_content = details_content['data']
     return details_content
-
-# Create a reusable browser function
-def new_browser():
-    SYSTEM_OS = platform.system()
-    if SYSTEM_OS == 'Windows':
-        user_data_dir = USER_DATA_DIR_WINDOWS
-        browser_executable_path = BROWSER_EXECUTABLE_PATH_WINDOWS
-    elif SYSTEM_OS == 'Linux':
-        user_data_dir = USER_DATA_DIR_LINUX
-        browser_executable_path = BROWSER_EXECUTABLE_PATH_LINUX
-    driver = uc.Chrome(user_data_dir=user_data_dir, browser_executable_path=browser_executable_path, headless=False)
-    return driver
 
 def get_listings():       
     cursor.execute("SELECT * FROM `availability` WHERE available=1")
@@ -104,7 +92,7 @@ def crawl_price_data(listing,minNights,driver):
 
 if __name__ == "__main__":
     listings=get_listings()
-    driver=new_browser()
+    driver=uc.Chrome()
     COUNTER=0
     for listing in tqdm(listings):
         COUNTER+=1
