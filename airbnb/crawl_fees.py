@@ -13,6 +13,7 @@ from tqdm import tqdm
 
 # Constants for API URLs
 DETAILS_API = 'https://www.airbnb.com/api/v3/StaysPdpSections'
+AIRBNB_BASE_URL='https://www.airbnb.com/rooms/'
 
 #Fix variables for python
 null=None
@@ -48,14 +49,10 @@ def extract_realtime_data(driver):
     return details_content
 
 def get_listings():       
-    cursor.execute("SELECT * FROM `availability` WHERE available=1")
+    cursor.execute("SELECT airbnb_property_id FROM `airdna_search`")
     rows=cursor.fetchall()   
-    row_headers=[x[0] for x in cursor.description] 
-    initial_data=[]
-    for result in rows:
-        initial_data.append(dict(zip(row_headers,result)))
-    print('Total rows : ',len(rows))
-    return initial_data
+    rows=[x[0] for x in rows] 
+    return rows
 
 def update_datedata(listingId,calendarDate,priceDate,Price,booked_days):
     sql_insert_with_param = """REPLACE INTO datedata
@@ -91,7 +88,7 @@ def crawl_price_data(listing,minNights,driver):
         print(e)
 
 if __name__ == "__main__":
-    listings=get_listings()
+    listings_id_list=get_listings()
     driver=uc.Chrome()
     COUNTER=0
     for listing in tqdm(listings):
