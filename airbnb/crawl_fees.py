@@ -3,7 +3,7 @@ from selenium.webdriver.support.wait import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
 from seleniumwire.utils import decode
-import time,getpass,platform,random
+import time,random
 from dateutil import parser
 from datetime import timedelta
 import mysql.connector
@@ -54,15 +54,6 @@ def get_listings():
     rows=[x[0] for x in rows] 
     return rows
 
-def update_datedata(listingId,calendarDate,priceDate,Price,booked_days):
-    sql_insert_with_param = """REPLACE INTO datedata
-                            (listingId,calendarDate,priceDate,Price,booked_days) 
-                            VALUES (?,?,?,?,?);"""
-    val = (listingId,calendarDate,priceDate,Price,booked_days)
-    cursor.execute(sql_insert_with_param , val)
-    conn.commit() 
-    print(val)
-
 def crawl_price_data(listing,minNights,driver):
     try:
         listingId=listing['listingId']
@@ -89,6 +80,7 @@ def crawl_price_data(listing,minNights,driver):
 
 if __name__ == "__main__":
     listings_id_list=get_listings()
+    listing_url=
     driver=uc.Chrome()
     COUNTER=0
     for listing in tqdm(listings):
